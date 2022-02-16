@@ -1,4 +1,6 @@
 import numpy as np
+import pandas as pd
+import settings
 
 
 def get_all_ind(count_cols, start_idx):
@@ -37,6 +39,9 @@ def get_distinct_rows():
 
 
 def add_result_cols(df):
+    """
+    добавляння колонки з результатом "rez"
+    """
     df["rez"] = df.loc[:, 'HT_FM_1h_s':'AT_FM_2h_s'].apply(
                         lambda x: int((x[0] + x[1]) > (x[2] + x[3])),  # k1-xk2
                         # lambda x: int(x.sum() > 2.5), #tb2.5
@@ -45,6 +50,9 @@ def add_result_cols(df):
 
 
 def drop_fm_cols(df):
+    """
+    видалення 4 колонок, які містять дані результату зустрічі команд
+    """
     df.drop(
         list(filter(lambda x: "_FM_" in x, df.columns)),
         axis="columns",
@@ -66,37 +74,118 @@ def get_list_data_multipr(all_gr_idx):
     return rez
 
 
-def get_chunks_df(gr_idx, df):
+def get_mask(vals, idx, df_data):
+    """
+    отримання маски для фільтрації "numpy"
+    """
+    mask = df_data[:,  idx[0]] == vals[0]
+    for col, val in zip(idx, vals):
+        mask = mask & (df_data[:, col] == val)
+    return mask
+
+
+def get_chunks_df(gr_idx, df, target="numpy"):
     min_idx = min(gr_idx)
     max_idx = max(gr_idx)
-    # df_data = df.loc[min_idx-10:min_idx-1]
-    df_data = None
-    # df_target = df.loc[min_idx:max_idx]
-    df_target = None
-    df_numpy = df.loc[:, "HT_HM_1h_s":].to_numpy()
-    df_numpy_data = df_numpy[min_idx-10:min_idx, :]
-    df_numpy_target = df_numpy[min_idx:max_idx+1, :]
-    return df_data, df_numpy_data, df_target, df_numpy_target
+    if target == "pandas":
+        df_data = df.loc[min_idx-10:min_idx-1]
+        df_target = df.loc[min_idx:max_idx]
+        return df_data, df_target
+    if target == "numpy":
+        df_numpy = df.loc[:, "HT_HM_1h_s":].to_numpy()
+        df_numpy_data = df_numpy[min_idx-10:min_idx, :]
+        df_numpy_target = df_numpy[min_idx:max_idx+1, :]
+        return df_numpy_data, df_numpy_target
 
 
-def proc_data(df_data):
+def proc_data(df_data, target="numpy"):
+    """
+    обробка df_datа, фільтурвання дублікатів
+    """
+    total_rez = []
     all_idx = get_all_ind(16, 0)
     for idx in all_idx:
-        data, count = np.unique(df_data[:, idx], return_counts=True, axis=0)
-        data = data[count >= 2]
-        if len(data) > 0:
-            print(f"indexes = {idx}")
-            print(df_data[:, idx])
-            print(count)
-            print(data)
+        if target == "numpy":
+            data, count = np.unique(df_data[:, idx],
+                                    return_counts=True,
+                                    axis=0
+                                    )
+            uniq_dup_rows = data[count >= 2]
+            if len(uniq_dup_rows) > 0:
+                for dup_row in uniq_dup_rows:
+                    mask = get_mask(dup_row, idx, df_data)
+                    rez = df_data[mask]
+                    rez_1 = rez[:, -1].sum()
+                    rez_0 = rez.shape[0] - rez_1
+                    total_rez.append([
+                        idx,  # список індексів
+                        dup_row.tolist(),  # список значень
+                        len(idx),  # кількість вибраних колонок
+                        rez_1,  # кількість результатів "1"
+                        rez_0  # кількість результатів "0"
+                    ])
 
-def some_name_func(gr_idx, df):
-    for idxs in gr_idx[-3:]:
-        df_data, df_numpy_data, df_target, df_numpy_target = get_chunks_df(idxs, df)
-        # print(idxs)
-        # print(df_data)
-        # print(df_target)
-        print(df_numpy_data)
-        print(df_numpy_target)
-        rez_proc_data = proc_data(df_numpy_data)
-        break
+        if target == "pandas":
+            # todo!!!
+            pass
+    return total_rez
+
+
+def create_rez_df_proc_data(data):
+    rez_df = pd.DataFrame(
+        data=data,
+        columns=[
+            "cols",
+            "vals",
+            "count_cols",
+            "rez_1",
+            "rez_0"
+        ]
+    )
+    rez_df["proc"] = rez_df["rez_0"] / (rez_df["rez_0"] + rez_df["rez_1"])
+    rez_df["tot_rows"] = rez_df["rez_0"] + rez_df["rez_1"]
+
+    return rez_df
+
+
+def some_name_func(gr_idx, df, q=None):
+    """
+    основна обробка частин даних
+    """
+    r_d = {1: 0, 0: 0}
+    for idxs in gr_idx:
+        df_data, df_target = get_chunks_df(idxs, df, target="numpy")
+        print(idxs)
+        rez_proc_data = proc_data(df_data, target="numpy")
+        rez_df = create_rez_df_proc_data(rez_proc_data)
+        s = rez_df[
+        (rez_df["proc"] >= settings.FILTER_PARAMS.get("MIN_PROC"))
+        &(rez_df["tot_rows"] >= settings.FILTER_PARAMS.get("MIN_COUNT_DUPL"))
+            ]
+        s = s.nlargest(
+            settings.FILTER_PARAMS.get("COUNT_ROWS"),
+            "count_cols"
+        )
+        for target_row in df_target:
+            r_l = []
+            for _, data_row in s.iterrows():
+                r = all(target_row[data_row["cols"]] == data_row["vals"])
+                if r is True:
+                    r_l.append(target_row)
+                    break
+
+            if len(r_l) > 0:
+                print("="*11)
+                for i in r_l:
+                    print(i)
+                    r_d[i[-1]] += 1
+                print("="*11)
+    q.put(r_d)
+
+
+def get_rez_dict(rez_l):
+    r_d = {1: 0, 0: 0}
+    for r in rez_l:
+        r_d[1] += r.get(1)
+        r_d[0] += r.get(0)
+    print(r_d)
