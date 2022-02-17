@@ -148,38 +148,48 @@ def create_rez_df_proc_data(data):
     return rez_df
 
 
-def some_name_func(gr_idx, df, q=None):
-    """
-    основна обробка частин даних
-    """
-    r_d = {1: 0, 0: 0}
-    for idxs in gr_idx:
-        df_data, df_target = get_chunks_df(idxs, df, target="numpy")
-        print(idxs)
-        rez_proc_data = proc_data(df_data, target="numpy")
-        rez_df = create_rez_df_proc_data(rez_proc_data)
+def proc_target_data(rez_df, df_target):
+    r_l = []
+    for proc in [0.74, 0.99]:
         s = rez_df[
-        (rez_df["proc"] >= settings.FILTER_PARAMS.get("MIN_PROC"))
-        &(rez_df["tot_rows"] >= settings.FILTER_PARAMS.get("MIN_COUNT_DUPL"))
-            ]
+            (rez_df["proc"] >= proc)
+            & (rez_df["tot_rows"] >= settings.FILTER_PARAMS.get("MIN_COUNT_DUPL"))
+        ]
         s = s.nlargest(
             settings.FILTER_PARAMS.get("COUNT_ROWS"),
             "count_cols"
         )
         for target_row in df_target:
-            r_l = []
             for _, data_row in s.iterrows():
                 r = all(target_row[data_row["cols"]] == data_row["vals"])
                 if r is True:
-                    r_l.append(target_row)
+                    r_l.append([
+                        target_row,
+                        proc,
+                    ])
                     break
+    return r_l
 
-            if len(r_l) > 0:
-                print("="*11)
-                for i in r_l:
-                    print(i)
-                    r_d[i[-1]] += 1
-                print("="*11)
+
+def some_name_func(gr_idx, df, q=None):
+    """
+    основна обробка частин даних
+    """
+    r_d = {1: 0, 0: 0}
+    r_l = []
+    for idxs in gr_idx:
+        df_data, df_target = get_chunks_df(idxs, df, target="numpy")
+        print(idxs)
+        rez_proc_data = proc_data(df_data, target="numpy")
+        rez_df = create_rez_df_proc_data(rez_proc_data)
+        r_l += proc_target_data(rez_df, df_target)
+
+    if len(r_l) > 0:
+        print("="*11)
+        for i in r_l:
+            print(i)
+            r_d[i[0][-1]] += 1
+        print("="*11)
     q.put(r_d)
 
 

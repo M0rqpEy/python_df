@@ -8,9 +8,11 @@ import multiprocessing as mp
 
 def main():
     df = pd.read_csv("/home/q/papka/sameshit/exp_1/data/data_20_21_e1.csv")
-    print(df.head(2).loc[:, "Date"])
     sf.add_result_cols(df)
     sf.drop_fm_cols(df)
+
+    # для тестів
+    df = df.loc[:150, :]
 
     gr = df.groupby("Date")
     total_list = sf.get_list_data_multipr(gr.groups.values())
