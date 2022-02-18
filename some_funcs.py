@@ -65,7 +65,7 @@ def get_list_data_multipr(all_gr_idx):
     _ = list(map(lambda _: rez.append([]), range(COUNT_PROCESSES)))
     idx = 0
     for gr in all_gr_idx:
-        if not all(map(lambda el: el >= 10, gr)):
+        if not all(map(lambda el: el >= 5, gr)):
             continue
         if idx > COUNT_PROCESSES-1:
             idx = 0
@@ -88,12 +88,12 @@ def get_chunks_df(gr_idx, df, target="numpy"):
     min_idx = min(gr_idx)
     max_idx = max(gr_idx)
     if target == "pandas":
-        df_data = df.loc[min_idx-10:min_idx-1]
+        df_data = df.loc[min_idx-5:min_idx-1]
         df_target = df.loc[min_idx:max_idx]
         return df_data, df_target
     if target == "numpy":
         df_numpy = df.loc[:, "HT_HM_1h_s":].to_numpy()
-        df_numpy_data = df_numpy[min_idx-10:min_idx, :]
+        df_numpy_data = df_numpy[min_idx-5:min_idx, :]
         df_numpy_target = df_numpy[min_idx:max_idx+1, :]
         return df_numpy_data, df_numpy_target
 
@@ -149,53 +149,107 @@ def create_rez_df_proc_data(data):
 
 
 def proc_target_data(rez_df, df_target):
-    r_l = []
-    for proc in [0.74, 0.99]:
-        s = rez_df[
-            (rez_df["proc"] >= proc)
-            & (rez_df["tot_rows"] >= settings.FILTER_PARAMS.get("MIN_COUNT_DUPL"))
-        ]
-        s = s.nlargest(
-            settings.FILTER_PARAMS.get("COUNT_ROWS"),
-            "count_cols"
-        )
-        for target_row in df_target:
-            for _, data_row in s.iterrows():
-                r = all(target_row[data_row["cols"]] == data_row["vals"])
-                if r is True:
-                    r_l.append([
-                        target_row,
-                        proc,
-                    ])
-                    break
-    return r_l
+    r_d = {}
+    for proc in [0.69, 0.79, 0.89]:
+        for count_dupl in [2, 3, 4, 5]:
+            for count_rows in [1, 3, 10, 25, 50]:
+                # for col_name in ["proc", "count_cols", "tot_rows"]:
+                s = rez_df[
+                    (rez_df["proc"] >= proc)
+                    & (rez_df["tot_rows"] >= count_dupl)
+                ]
+                s = s.nlargest(
+                    count_rows,
+                    # col_name,
+                    # "proc"
+                    "count_cols"
+                    # "tot_rows"
+                )
+                for target_row in df_target:
+                    for _, data_row in s.iterrows():
+                        r = all(
+                            target_row[data_row["cols"]] == data_row["vals"]
+                        )
+                        if r is True:
+                            key = (
+                                proc,
+                                count_dupl,
+                                count_rows,
+                                # col_name
+                            )
+                            if key not in r_d:
+                                r_d[key] = [target_row]
+                            else:
+                                r_d[key].append(target_row)
+                            break
+    return r_d
 
 
 def some_name_func(gr_idx, df, q=None):
     """
     основна обробка частин даних
     """
-    r_d = {1: 0, 0: 0}
+    r_d = {}
     r_l = []
+    middle_d = {}
     for idxs in gr_idx:
         df_data, df_target = get_chunks_df(idxs, df, target="numpy")
         print(idxs)
         rez_proc_data = proc_data(df_data, target="numpy")
         rez_df = create_rez_df_proc_data(rez_proc_data)
-        r_l += proc_target_data(rez_df, df_target)
+        r_l.append(proc_target_data(rez_df, df_target))
 
     if len(r_l) > 0:
-        print("="*11)
-        for i in r_l:
-            print(i)
-            r_d[i[0][-1]] += 1
-        print("="*11)
+        for d in r_l:
+            for k, v in d.items():
+                if k not in middle_d:
+                    middle_d[k] = v
+                else:
+                    middle_d[k] += v
+            # r_d[i[0][-1]] += 1
+        for k, v in middle_d.items():
+            print("="*11)
+            print(k)
+            # for l in v:
+                # print(l)
+            rez_np = np.array(v)
+            rez_1 = rez_np[:, -1].sum()
+            rez_0 = rez_np.shape[0] - rez_1
+            r_d[k] = {1: rez_1, 0: rez_0}
+            print(f"{rez_1=} || {rez_0=}")
+            print("="*11)
     q.put(r_d)
 
 
-def get_rez_dict(rez_l):
-    r_d = {1: 0, 0: 0}
-    for r in rez_l:
-        r_d[1] += r.get(1)
-        r_d[0] += r.get(0)
-    print(r_d)
+def get_rez_dict(rez_l, file_name):
+    final_rez_l = []
+    r_d = {}
+    for d in rez_l:
+        for k, v in d.items():
+            if k not in r_d:
+                r_d[k] = v
+            else:
+                r_d[k][1] += v.get(1, 0)
+                r_d[k][0] += v.get(0, 0)
+    for k, v in r_d.items():
+        proc = v[0] / (v[1] + v[0])
+        print(f"key = {k} == {v} proc= {proc}")
+        final_rez_l.append([
+            k,
+            v.get(1, 0),
+            v.get(0, 0),
+            proc
+        ])
+        final_rez_df = pd.DataFrame(
+            data=final_rez_l,
+            columns=[
+                "params",
+                "rez_1",
+                "rez_0",
+                "proc",
+            ])
+        final_rez_df.to_csv(
+            f"./csv/post_data/post_{file_name}",
+            index=False
+        )
+        final_rez_df = final_rez_df.iloc[0:0]

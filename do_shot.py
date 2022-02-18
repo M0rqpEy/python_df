@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 # import numpy as np
 # import polars as pl
 import some_funcs as sf
@@ -6,13 +7,14 @@ import time
 import multiprocessing as mp
 
 
-def main():
-    df = pd.read_csv("/home/q/papka/sameshit/exp_1/data/data_20_21_e1.csv")
+def do_work(file_name):
+    # df = pd.read_csv("/home/q/papka/sameshit/exp_1/data/data_19_20_d1.csv")
+    df = pd.read_csv(f"./csv/pre_data/{file_name}")
     sf.add_result_cols(df)
     sf.drop_fm_cols(df)
 
     # для тестів
-    df = df.loc[:150, :]
+    # df = df.loc[:150, :]
 
     gr = df.groupby("Date")
     total_list = sf.get_list_data_multipr(gr.groups.values())
@@ -35,7 +37,14 @@ def main():
         print(f"{pr.name} =  {rez}")
         pr.join()
 
-    sf.get_rez_dict(rez_l)
+    sf.get_rez_dict(rez_l, file_name)
+
+
+def main():
+    for file_name in os.listdir("./csv/pre_data"):
+        print(file_name)
+        do_work(file_name)
+        # break
 
 
 if __name__ == "__main__":
