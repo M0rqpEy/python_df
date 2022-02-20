@@ -43,7 +43,9 @@ def add_result_cols(df):
     добавляння колонки з результатом "rez"
     """
     df["rez"] = df.loc[:, 'HT_FM_1h_s':'AT_FM_2h_s'].apply(
-                        lambda x: int((x[0] + x[1]) > (x[2] + x[3])),  # k1-xk2
+                        lambda x: int((x[0] + x[1]) > (x[2] + x[3])),  # п1|xп2
+                        # lambda x: int((x[0] + x[1]) >= (x[2] + x[3])),  # п1x|п2
+                        # lambda x: int((x[0] + x[1]) != (x[2] + x[3])),  # 12|н
                         # lambda x: int(x.sum() > 2.5), #tb2.5
                         axis=1
                         )
@@ -150,8 +152,10 @@ def create_rez_df_proc_data(data):
 
 def proc_target_data(rez_df, df_target):
     r_d = {}
+    """
+
     for proc in [0.69, 0.79, 0.89]:
-        for count_dupl in [2, 3, 4, 5]:
+        for count_dupl in [3, 5, 7, 9, 11]:
             for count_rows in [1, 3, 10, 25, 50]:
                 # for col_name in ["proc", "count_cols", "tot_rows"]:
                 s = rez_df[
@@ -165,27 +169,29 @@ def proc_target_data(rez_df, df_target):
                     "count_cols"
                     # "tot_rows"
                 )
-                for target_row in df_target:
-                    for _, data_row in s.iterrows():
-                        r = all(
-                            target_row[data_row["cols"]] == data_row["vals"]
-                        )
-                        if r is True:
-                            key = (
-                                proc,
-                                count_dupl,
-                                count_rows,
-                                # col_name
-                            )
-                            if key not in r_d:
-                                r_d[key] = [target_row]
-                            else:
-                                r_d[key].append(target_row)
-                            break
+                """
+    for target_row in df_target:
+        for _, data_row in rez_df.iterrows():
+            r = all(
+                target_row[data_row["cols"]] == data_row["vals"]
+            )
+            if r is True:
+                # key = (
+                    # proc,
+                    # count_dupl,
+                    # count_rows,
+                    # col_name
+                # )
+                key = tuple(data_row["cols"])
+                if key not in r_d:
+                    r_d[key] = [target_row]
+                else:
+                    r_d[key].append(target_row)
+                # break
     return r_d
 
 
-def some_name_func(gr_idx, df, q=None):
+def some_name_func(gr_idx, df, man_obj=None, pr_name=None):
     """
     основна обробка частин даних
     """
@@ -194,7 +200,7 @@ def some_name_func(gr_idx, df, q=None):
     middle_d = {}
     for idxs in gr_idx:
         df_data, df_target = get_chunks_df(idxs, df, target="numpy")
-        print(idxs)
+        # print(idxs)
         rez_proc_data = proc_data(df_data, target="numpy")
         rez_df = create_rez_df_proc_data(rez_proc_data)
         r_l.append(proc_target_data(rez_df, df_target))
@@ -206,34 +212,35 @@ def some_name_func(gr_idx, df, q=None):
                     middle_d[k] = v
                 else:
                     middle_d[k] += v
-            # r_d[i[0][-1]] += 1
         for k, v in middle_d.items():
-            print("="*11)
-            print(k)
-            # for l in v:
-                # print(l)
+            # print("="*11)
+            # print(k)
             rez_np = np.array(v)
             rez_1 = rez_np[:, -1].sum()
             rez_0 = rez_np.shape[0] - rez_1
             r_d[k] = {1: rez_1, 0: rez_0}
-            print(f"{rez_1=} || {rez_0=}")
-            print("="*11)
-    q.put(r_d)
+            # print(f"{rez_1=} || {rez_0=}")
+            # print("="*11)
+
+        # man_obj.put(r_d)
+        man_obj[pr_name] = r_d
 
 
-def get_rez_dict(rez_l, file_name):
+
+def get_rez_dict(rez_d, file_name):
     final_rez_l = []
     r_d = {}
-    for d in rez_l:
+    for _, d in rez_d.items():
         for k, v in d.items():
             if k not in r_d:
                 r_d[k] = v
             else:
                 r_d[k][1] += v.get(1, 0)
                 r_d[k][0] += v.get(0, 0)
+
     for k, v in r_d.items():
         proc = v[0] / (v[1] + v[0])
-        print(f"key = {k} == {v} proc= {proc}")
+        # print(f"key = {k} == {v} proc= {proc}")
         final_rez_l.append([
             k,
             v.get(1, 0),

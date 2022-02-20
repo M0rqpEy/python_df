@@ -21,23 +21,33 @@ def do_work(file_name):
 
     # тест. вивід в термінал
     q = mp.Queue()
-    all_prs = []
-    for i, data in enumerate(total_list):
-        pr = mp.Process(target=sf.some_name_func,
-                        args=(data, df, q),
-                        name=f"pr-{i}"
-                        )
-        pr.start()
-        all_prs.append(pr)
+    with mp.Manager() as manager:
+        all_prs = []
+        man_dict = manager.dict()
+        for i, data in enumerate(total_list):
+            pr_name = f"pr-{i}"
+            pr = mp.Process(target=sf.some_name_func,
+                            # args=(data, df, q),
+                            args=(data, df, man_dict, pr_name),
+                            name=pr_name
+                            )
+            pr.start()
+            all_prs.append(pr)
 
-    rez_l = []
-    for pr in all_prs:
-        rez = q.get()
-        rez_l.append(rez)
-        print(f"{pr.name} =  {rez}")
-        pr.join()
+        # while not q.empty():
+            # q.get()
+            # print("shit")
 
-    sf.get_rez_dict(rez_l, file_name)
+        rez_l = []
+        for pr in all_prs:
+            # rez = q.get()
+            # rez_l.append(rez)
+            # print(f"{pr.name} =  {rez}")
+            pr.join()
+        #print(man_dict)
+        rez_d = {**man_dict}
+        sf.get_rez_dict(rez_d, file_name)
+        rez_d = {}
 
 
 def main():
