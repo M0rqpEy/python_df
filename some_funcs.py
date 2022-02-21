@@ -100,7 +100,7 @@ def get_chunks_df(gr_idx, df, target="numpy"):
         return df_numpy_data, df_numpy_target
 
 
-def proc_data(df_data, target="numpy"):
+def proc_data(df_data, selected_idx, target="numpy"):
     """
     обробка df_datа, фільтурвання дублікатів
     """
@@ -122,6 +122,7 @@ def proc_data(df_data, target="numpy"):
                     total_rez.append([
                         idx,  # список індексів
                         dup_row.tolist(),  # список значень
+                        selected_idx,  # вибрані індекси матчів
                         len(idx),  # кількість вибраних колонок
                         rez_1,  # кількість результатів "1"
                         rez_0  # кількість результатів "0"
@@ -139,6 +140,7 @@ def create_rez_df_proc_data(data):
         columns=[
             "cols",
             "vals",
+            "sel_idx",
             "count_cols",
             "rez_1",
             "rez_0"
@@ -150,27 +152,10 @@ def create_rez_df_proc_data(data):
     return rez_df
 
 
-def proc_target_data(rez_df, df_target):
+def proc_target_data(rez_df, df_target, idxs):
     r_d = {}
-    """
-
-    for proc in [0.69, 0.79, 0.89]:
-        for count_dupl in [3, 5, 7, 9, 11]:
-            for count_rows in [1, 3, 10, 25, 50]:
-                # for col_name in ["proc", "count_cols", "tot_rows"]:
-                s = rez_df[
-                    (rez_df["proc"] >= proc)
-                    & (rez_df["tot_rows"] >= count_dupl)
-                ]
-                s = s.nlargest(
-                    count_rows,
-                    # col_name,
-                    # "proc"
-                    "count_cols"
-                    # "tot_rows"
-                )
-                """
-    for target_row in df_target:
+    r_l = []
+    for target_row, idx in zip(df_target, idxs):
         for _, data_row in rez_df.iterrows():
             r = all(
                 target_row[data_row["cols"]] == data_row["vals"]
@@ -182,13 +167,21 @@ def proc_target_data(rez_df, df_target):
                     # count_rows,
                     # col_name
                 # )
+                some_rez = data_row
+                some_rez["rez"] = target_row[-1]
+                some_rez["target_ind"] = idx
+                # print(some_rez)
+                r_l.append(some_rez)
+                """
+                continue
                 key = tuple(data_row["cols"])
                 if key not in r_d:
                     r_d[key] = [target_row]
                 else:
                     r_d[key].append(target_row)
+                """
                 # break
-    return r_d
+    return r_l
 
 
 def some_name_func(gr_idx, df, man_obj=None, pr_name=None):
@@ -200,11 +193,12 @@ def some_name_func(gr_idx, df, man_obj=None, pr_name=None):
     middle_d = {}
     for idxs in gr_idx:
         df_data, df_target = get_chunks_df(idxs, df, target="numpy")
-        # print(idxs)
-        rez_proc_data = proc_data(df_data, target="numpy")
+        rez_proc_data = proc_data(df_data, idxs, target="numpy")
         rez_df = create_rez_df_proc_data(rez_proc_data)
-        r_l.append(proc_target_data(rez_df, df_target))
+        r_l += proc_target_data(rez_df, df_target, idxs)
 
+    man_obj[pr_name] = r_l
+    """
     if len(r_l) > 0:
         for d in r_l:
             for k, v in d.items():
@@ -223,7 +217,7 @@ def some_name_func(gr_idx, df, man_obj=None, pr_name=None):
             # print("="*11)
 
         # man_obj.put(r_d)
-        man_obj[pr_name] = r_d
+    """
 
 
 
@@ -256,7 +250,22 @@ def get_rez_dict(rez_d, file_name):
                 "proc",
             ])
         final_rez_df.to_csv(
-            f"./csv/post_data/post_{file_name}",
+            f"./csv/post_data/post_{file_name[4:]}",
             index=False
         )
         final_rez_df = final_rez_df.iloc[0:0]
+
+
+def get_rez_dict_v2(rez_d, file_name):
+    final_rez_l = []
+    r_d = {}
+    for _, l_w_series in rez_d.items():
+        final_rez_l += l_w_series
+
+    print(len(final_rez_l))
+    final_rez_df = pd.DataFrame(data=final_rez_l)
+    final_rez_df.to_csv(
+        f"./csv/post_data/post_{file_name[4:]}",
+        index=False
+    )
+    final_rez_df = final_rez_df.iloc[0:0]

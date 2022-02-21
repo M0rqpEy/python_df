@@ -46,15 +46,18 @@ def do_work(file_name):
             pr.join()
         #print(man_dict)
         rez_d = {**man_dict}
-        sf.get_rez_dict(rez_d, file_name)
+        sf.get_rez_dict_v2(rez_d, file_name)
         rez_d = {}
 
 
 def main():
     for file_name in os.listdir("./csv/pre_data"):
-        print(file_name)
-        do_work(file_name)
-        # break
+        if "21_22" in file_name:
+            print(file_name)
+            # continue
+            do_work(file_name)
+            print(f"done - {file_name}")
+            # break
 
 
 if __name__ == "__main__":
