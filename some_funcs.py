@@ -67,7 +67,7 @@ def get_list_data_multipr(all_gr_idx):
     _ = list(map(lambda _: rez.append([]), range(COUNT_PROCESSES)))
     idx = 0
     for gr in all_gr_idx:
-        if not all(map(lambda el: el >= 5, gr)):
+        if not all(map(lambda el: el >= 10, gr)):
             continue
         if idx > COUNT_PROCESSES-1:
             idx = 0
@@ -90,12 +90,12 @@ def get_chunks_df(gr_idx, df, target="numpy"):
     min_idx = min(gr_idx)
     max_idx = max(gr_idx)
     if target == "pandas":
-        df_data = df.loc[min_idx-5:min_idx-1]
+        df_data = df.loc[min_idx-10:min_idx-1]
         df_target = df.loc[min_idx:max_idx]
         return df_data, df_target
     if target == "numpy":
         df_numpy = df.loc[:, "HT_HM_1h_s":].to_numpy()
-        df_numpy_data = df_numpy[min_idx-5:min_idx, :]
+        df_numpy_data = df_numpy[min_idx-10:min_idx, :]
         df_numpy_target = df_numpy[min_idx:max_idx+1, :]
         return df_numpy_data, df_numpy_target
 
