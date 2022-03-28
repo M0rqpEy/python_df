@@ -89,17 +89,22 @@ def do_stats():
 
 
 def do_tests():
-    a = {}
-    print(dir(a))
+    a = os.listdir("./csv/post_data/")
+    b = pd.Series(a)
+    grs = b.groupby(lambda x: a[x].split("_")[-1])
+    for name, data in grs:
+        print(name)
+        print(data)
+
 
 def do_stats_v2():
-    for count_cols in range(2, 8+1):
-        for tot_rows in range(2, 8+1):
-            for proc in np.arange(0.69, 1.0, 0.05):
+    for tot_rows in range(2, 8+1):
+        for count_cols in range(7, 10+1):
+            for proc in np.arange(0.64, 1.0, 0.05):
                 print(
+                    f"tot_rows = {tot_rows} "
                     f"count_cols = {count_cols} "
                     f"proc = {proc:.3f} "
-                    f"tot_rows = {tot_rows} "
                 )
                 for part_f in ["19_20", "20_21", "21_22"]:
                     final_0 = 0
@@ -119,7 +124,6 @@ def do_stats_v2():
                         tot_rez = rez_0 / (rez_0 + rez_1)
                         """
                         print(
-
                             f"  "
                             f"rez = +{rez_0:3} -{rez_1:3} "
                             f"= {tot_rez:.3f} "
@@ -144,7 +148,8 @@ def do_stats_v2():
                 print("="*11)
 
 
-def do_shit_w_data(grs_by_sel_idx, count_cols, proc, tot_rows):
+def do_shit_w_data(df_data, count_cols, proc, tot_rows):
+    grs_by_sel_idx = df_data.groupby("sel_idx")
     rez_d = {}
     for i, (name, data) in enumerate(grs_by_sel_idx):
         # if i >= 5:
@@ -171,9 +176,75 @@ def do_shit_w_data(grs_by_sel_idx, count_cols, proc, tot_rows):
     return rez_d
 
 
+def do_stats_v3():
+    a = os.listdir("./csv/post_data/")
+    b = pd.Series(a)
+    grs = b.groupby(lambda x: a[x].split("_")[-1])
+
+    for name_grs, data in grs:
+        rez = work_w_data(data)
+        if rez is None:
+            continue
+        """
+        for k, v in rez.items():
+            print(f"  {k} == {v}")
+        print("  ==")
+        """
+
+
+def work_w_data(data):
+    gr = data.values
+    gr.sort()
+    # gr_data = list(filter(lambda x: "21_22" in x or "20_21" in x, gr))
+    gr_data = list(filter(lambda x: "19_20" in x or "20_21" in x, gr))
+    for tot_rows in range(5, 9+1):
+        for count_cols in range(3, 9+1):
+            for proc in np.arange(0.69, 0.999, 0.05):
+                rez_tot = {}
+                for file_name in gr_data:
+                    # print(file_name)
+                    df_data = pd.read_csv(f"./csv/post_data/{file_name}")
+                    rez_d = do_shit_w_data(
+                        df_data, count_cols, proc, tot_rows
+                    )
+                    if rez_d == {}:
+                        break
+                    rez_0 = rez_d.get(0, 0)
+                    rez_1 = rez_d.get(1, 0)
+                    try:
+                        tot_proc = rez_0 / (rez_0 + rez_1)
+                        rez_tot[file_name] = {
+                            1: rez_1,
+                            0: rez_0,
+                            "tot_proc": round(tot_proc, 3),
+                            "tot_sum": (rez_0 + rez_1),
+                        }
+                    except ZeroDivisionError:
+                        break
+                for k, v in rez_tot.items():
+                    if "19_20" in k:
+                    # if "20_21" in k:
+                        if (
+                            v["tot_proc"] >= 0.6
+                            and v["tot_sum"] >= 10
+                        ):
+                        # if True:
+                            print(
+                                f"  "
+                                f"tot_rows = {tot_rows} "
+                                f"count_cols = {count_cols} "
+                                f"proc = {proc:.3f} "
+                            )
+                            for k, v in rez_tot.items():
+                                print(f"  {k} == {v}")
+                            print("  ==")
+
+
+
 if __name__ == "__main__":
     # do_stats()
-    do_stats_v2()
+    # do_stats_v2()
+    do_stats_v3()
     # do_tests()
 # ['cols', 'vals', 'sel_idx', 'count_cols', 'rez_1', 'rez_0',
 # 'proc', 'tot_rows', 'rez', 'target_ind']

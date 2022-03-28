@@ -43,10 +43,10 @@ def add_result_cols(df):
     добавляння колонки з результатом "rez"
     """
     df["rez"] = df.loc[:, 'HT_FM_1h_s':'AT_FM_2h_s'].apply(
-                        lambda x: int((x[0] + x[1]) > (x[2] + x[3])),  # п1|xп2
+                        # lambda x: int((x[0] + x[1]) > (x[2] + x[3])),  # п1|xп2
                         # lambda x: int((x[0] + x[1]) >= (x[2] + x[3])),  # п1x|п2
                         # lambda x: int((x[0] + x[1]) != (x[2] + x[3])),  # 12|н
-                        # lambda x: int(x.sum() > 2.5), #tb2.5
+                        lambda x: int(x.sum() > 2.5), #tb2.5
                         axis=1
                         )
 

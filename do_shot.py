@@ -52,7 +52,8 @@ def do_work(file_name):
 
 def main():
     for file_name in os.listdir("./csv/pre_data"):
-        if "21_22" in file_name:
+        # if "21_22" in file_name:
+        if True:
             print(file_name)
             # continue
             do_work(file_name)
