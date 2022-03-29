@@ -39,16 +39,16 @@ def do_shit(f=None, char_f=None, v_h=None, v_a=None):
 
             # c = 1 if char_f != "_" else 3
             # c = 6 if char_f != "_" else 10
-            c = 3 if char_f != "_" else 8
-            # c = 8 if char_f != "_" else 16
+            # c = 3 if char_f != "_" else 8
+            c = 12 if char_f != "_" else 20
             # if count_h >= c:
             # if count_a >= c:
-            if count_h + count_a <= c:
+            if count_h + count_a >= c:
                 rez_d[row["rez"]]+=1
     rez_0 = rez_d.get(0, 0)
     rez_1 = rez_d.get(1, 0)
     proc = rez_0 / (rez_0 + rez_1) if (rez_0 + rez_1) > 0 else 0
-    if "19" in file_name and proc <= 0.66:
+    if "19" in file_name and proc >= 1.31:
         return
     print(f"{file_name} => {rez_d} => {proc:.3f}")
     return rez_d
@@ -57,24 +57,32 @@ def do_shit(f=None, char_f=None, v_h=None, v_a=None):
 def main(many=None):
     if many:
         tot_list = os.listdir("./csv/pre_data")
-        tot_list = list(filter(lambda x: "f2" in x, tot_list))
+        tot_list = list(filter(lambda x: "f1" in x, tot_list))
         # tot_list = list(filter(lambda x: "20" in x, tot_list))
         tot_list.sort()
         for char_f in ["HT", "AT","HM", "AM", "_s", "_m", "_"]:
+        # for char_f in ["_"]:
             for val_h in [1,0]:
                 for val_a in [1,0]:
                     print("===")
                     print(f"{char_f} {val_h} {val_a}")
+                    tot_rez = {1:0, 0:0}
                     for file_name in tot_list:
-                        tot_rez = {1:0, 0:0}
                         rez_d = do_shit(file_name, char_f, val_h, val_a)
                         if rez_d is None:
                             break
-                        rez_0 = rez_d.get(0, 0)
-                        rez_1 = rez_d.get(1, 0)
-                        tot_rez[1] += rez_1
-                        tot_rez[0] += rez_0
-                    # print(tot_rez)
+                        if "20" in file_name:
+                            rez_0 = rez_d.get(0, 0)
+                            rez_1 = rez_d.get(1, 0)
+                            tot_rez[1] += rez_1
+                            tot_rez[0] += rez_0
+
+                    t_rez_0 = tot_rez.get(0, 0)
+                    t_rez_1 = tot_rez.get(1, 0)
+                    if (t_rez_0 + t_rez_1) == 0:
+                        continue
+                    proc = t_rez_0 / (t_rez_0 + t_rez_1)
+                    print(f"{tot_rez} => {proc:.3f}")
     else:
         do_shit()
 
