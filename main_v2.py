@@ -22,11 +22,17 @@ def do_shit(f=None, count=None, char_f=None, v_h=None, v_a=None):
             filt_l = list(filter(lambda x: "_" in x, df_set.columns))
             data_r = row[filt_l].values
 
-            df_h = df_set[ (df_set["HomeTeam"] == h_name) ]
+            df_h = df_set[
+                (df_set["HomeTeam"] == h_name)
+                |(df_set["AwayTeam"] == h_name)
+            ]
             val_h = df_h.loc[df_h.index[-1]]
             data_h = val_h[filt_l].values
 
-            df_a = df_set[ (df_set["AwayTeam"] == a_name) ]
+            df_a = df_set[
+                (df_set["AwayTeam"] == a_name)
+                |(df_set["HomeTeam"] == a_name)
+            ]
             val_a = df_a.loc[df_a.index[-1]]
             data_a = val_a[filt_l].values
 
@@ -45,33 +51,36 @@ def do_shit(f=None, count=None, char_f=None, v_h=None, v_a=None):
             # c = 6 if char_f != "_" else 2
             # top4ik
             # c = 11 if char_f != "_" else 20
-            # if count_h >= c:
-            # if count_a >= c:
+            # if count_h == count:
+            # if count_a == count:
             if count_h + count_a == count:
                 rez_d[row["rez"]]+=1
     rez_0 = rez_d.get(0, 0)
     rez_1 = rez_d.get(1, 0)
     proc = rez_0 / (rez_0 + rez_1) if (rez_0 + rez_1) > 0 else 0
-    if "19" in file_name and proc <= 0.14:
-        return
+    if "19" in file_name:
+        if proc <= 0.69 or (rez_0 + rez_1) < 10:
+            return
     return rez_d
 
 
 def main():
     tot_list = os.listdir("./csv/pre_data")
     # tot_list = list(filter(lambda x: "e0" in x, tot_list))
-    # tot_list = list(filter(lambda x: "20" in x, tot_list))
+    # tot_list = list(filter(lambda x: "19" in x, tot_list))
     # tot_list.sort()
     uniq_chap = list(set(map( lambda x: x.split("_")[-1], tot_list)))
     for chap in uniq_chap:
+        r_target = {1:0, 0:0}
         print(f"{'+'*15} {chap}")
-        target_files = list(filter(lambda x: chap in x, tot_list))
+        target_files = list(filter(lambda x: f"{'_'+chap}" in x, tot_list))
         target_files.sort()
         # for char_f in ["HT", "AT","HM", "AM", "_s", "_m", "_"]:
         # for char_f in ["_"]:
             # for val_h in [1,0]:
                 # for val_a in [1,0]:
-        for count in range(-20, 20):
+        for count in range(-22, 32):
+            m_r_target = {}
             tot_rez = {1:0, 0:0}
             # print(f"{char_f} {val_h} {val_a}")
             l_w_rez = []
@@ -89,18 +98,24 @@ def main():
                 if "20" in file_name:
                     tot_rez[1] += rez_1
                     tot_rez[0] += rez_0
+                if "_22" in file_name:
+                    m_r_target = {**rez_d}
 
             t_rez_0 = tot_rez.get(0, 0)
             t_rez_1 = tot_rez.get(1, 0)
             if (t_rez_0 + t_rez_1) == 0:
                 continue
             proc = t_rez_0 / (t_rez_0 + t_rez_1)
-            if proc <= 0.70:
-                continue
+            # if proc <= 0.69 or (t_rez_0 + t_rez_1) <= 10:
+                # continue
+            r_target[1] += m_r_target.get(1, 0)
+            r_target[0] += m_r_target.get(0, 0)
             print("===")
             print(count)
             [print(x) for x in l_w_rez]
             print(f"{tot_rez} => {proc:.3f}")
+        print(f" toto => {r_target}")
+        print()
 
 
 if __name__ == "__main__":
